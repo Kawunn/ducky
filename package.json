@@ -9,8 +9,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cpu-stat": "^2.0.1",
+    "dateformat": "^3.0.3",
     "discord.js": "^12.4.1",
+    "got": "^11.8.0",
     "imageapi.js": "^1.0.19",
+    "moment": "^2.29.1",
+    "ms": "^2.1.2",
+    "node-fetch": "^2.6.1",
+    "os": "^0.1.1",
+    "parse-ms": "^2.1.0",
     "quick.db": "^7.1.3"
   }
 }

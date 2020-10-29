@@ -3,13 +3,18 @@ const Discord = require('discord.js');
 var guildConf = require('./guildConf.json')
 const Fs = require("fs");
 const prefix = ';';
+db = require('quick.db')
 
 const client = new Discord.Client();
 client.commands = new Discord.Client();
 
-answer = true;
-cAnswer = "";
-userAnswer = "";
+fetch = require('node-fetch'),
+cpuStat = require('cpu-stat'),
+parse_ms = require('parse-ms'),
+ms = require('ms'),
+os = require('os'),
+dateformat = require('dateformat');
+var dateFormat = require('dateformat');
 
 client.once('ready', () => {
     console.log(`Success! Logged in as ${client.user.tag}.`);
@@ -37,6 +42,19 @@ client.on('message', message => {
         .setAuthor("Gizmo's Help Command")
         .setDescription("Dungeon Gizmo v1.0")
         .addField("**Commands** \n",":1234: Math \n;help math \n\n :hammer_pick: Moderation \n ;help moderation \n\n :smile: Fun \n;help fun \n\n :money_with_wings:  Economy \n;help eco \n\n :100: : Misc \n;help misc")
+        .setColor("AQUA")
+        .setFooter("Lead Developers: SpookySleek#8596 and SpookyEvee#0001")
+        .setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+        message.author.send(helpEmbed)
+    }
+});
+
+client.on('message', message => {
+    if(message.content === ";help math") {
+        const helpEmbed = new Discord.MessageEmbed()
+        .setAuthor("Gizmo's Math Help Command")
+        .setDescription("Dungeon Gizmo v1.0")
+        .addField("**Commands** \n","```Multiply 2 numbers, example: ;multiply 8 4 = Gives answer 32``` Math \n;help math \n\n :hammer_pick: Moderation \n ;help moderation \n\n :smile: Fun \n;help fun \n\n :money_with_wings:  Economy \n;help eco \n\n :100: : Misc \n;help misc")
         .setColor("AQUA")
         .setFooter("Lead Developers: SpookySleek#8596 and SpookyEvee#0001")
         .setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
@@ -146,6 +164,15 @@ client.on('message', message =>{
     } else if(command === 'hey'){
         message.channel.send('hey');
 
+    } else if(command === 'quite'){
+        message.channel.send('hey WATCH IT! I AM GIZMOTRON 9000000000');
+
+    } else if(command === 'gizmo'){
+        message.channel.send('hey buddy, got something to tell u...turns out, ur a 100%, that bitch!');
+
+    } else if(command === 'gizmoblood'){
+        message.channel.send('i have an A blood type');
+    
     } else if(command === 'yo'){
         message.channel.send('yo');
 
@@ -200,29 +227,6 @@ client.on('message', message => {
             })
     }
 
-    if (msg.startsWith(guildConf[message.guild.id].prefix + 'quiz')) {
-
-        if (answered = false) {
-            userAnswer = msg;
-        if (userAnswer == cAnswer) {
-        }
-        else {
-            message.reply ("incorrect")
-        }
-        answered = true; cAnswer = ""; userAnswer = "";
-        }
-        
-
-        number = 3;
-        var random = Math.floor (Math.random() * (number - 1 + 1)) + 1;
-        switch(random) {
-            case 1: message.channel.send('are u cool'); cAnswer = "yes" 
-            case 2: message.channel.send('what fruit do u like'); cAnswer = "orange" 
-            case 3: message.channel.send('r u good'); cAnswer = "yes" 
-        }
-        answered = false;
-    }
-
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'food')) {
         if (!args[1]) {
           let foodEmbed = new Discord.MessageEmbed()
@@ -261,14 +265,6 @@ client.on('message', message => {
         } else {
             return message.channel.send('You do not have permissions to log.')
         }
-        }
-
-        if (msg.startsWith(guildConf[message.guild.id].prefix + 'prefix')) {
-            if (message.member.hasPermission("MANAGE_GUILD") || message.member.hasPermission("ADMINISTRATOR")) {
-                bot.commands.get('prefix').execute(message, args, guildConf)
-            } else {
-                return message.channel.send('You require the manage server permission to use this.')
-            }
         }
           
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'rps')) {
@@ -348,24 +344,182 @@ client.on('message', message => {
         }
     }
 
-    if (msg.startsWith(guildConf[message.guild.id].prefix + 'kill')) {
+    if (msg.startsWith(prefix + "spotify")) {
+        let user;
+        if (message.mentions.users.first()) {
+          user = message.mentions.users.first();
+        } else {
+          user = message.author;
+        }
+        
+        let convert = require('parse-ms')
+        
+        let status = user.presence.activities[0];
+        
+        if (user.presence.activities.length === 0 || status.name !== "Spotify" && status.type !== "LISTENING") return message.channel.send("Failed to run this command, this user isn't listening to a song on Spotify.");
+        
+        if (status !== null && status.type === "LISTENING" && status.name === "Spotify" && status.assets !== null) {
+          let image = `https://i.scdn.co/image/${status.assets.largeImage.slice(8)}`,
+              url = `https://open.spotify.com/track/${status.syncID}`,
+              name = status.details,
+              artist = status.state,
+              album = status.assets.largeText,
+              timeStart = status.timestamps.start,
+              timeEnd = status.timestamps.end,
+              timeConvert = convert(timeEnd - timeStart);
+          
+          let minutes = timeConvert.minutes < 10 ? `0${timeConvert.minutes}` : timeConvert.minutes;
+          let seconds = timeConvert.seconds < 10 ? `0${timeConvert.seconds}` : timeConvert.seconds;
+          
+          let time = `${minutes}:${seconds}`;
+          
+          const embed = new Discord.MessageEmbed()
+          .setAuthor("Spotify Track Information" + ' for ' + message.author.username)
+          .setColor(0x1ED768)
+          .setThumbnail(image)
+          .addField("Name:", name, true)
+          .addField("Album:", album, true)
+          .addField("Artist:", artist, true)
+          .addField("Duration:", time, true)
+          .addField("ID:", + message.author.id, true)
+          .addField("Listen now on Spotify!", `[\`${artist} - ${name}\`](${url})`, false)
+          message.channel.send(embed)
+        }
+      }
+        
+      if (msg.startsWith(guildConf[message.guild.id].prefix + 'kill')) {
         let user = message.mentions.users.first();
         if (!user) {
             return message.channel.send('Failed to run this command, please include who you are killing.')
         }
-        return message.channel.send(message.author.username + ' won the lottery, then got swarmed and killed but gold diggers' + ' \n**Eliminated by: **' + message.author.username) 
+        return message.channel.send(user.username + ' won the lottery, then got swarmed and killed but gold diggers' + ' \n**Eliminated by: **' + message.author.username) 
     }
 
-    if (msg.startsWith(guildConf[message.guild.id].prefix + 'throw')) {
+    if (msg.startsWith(guildConf[message.guild.id].prefix + 'snipe')) {
         let user = message.mentions.users.first();
         if (!user) {
-            return message.channel.send('Failed to run this command, please include who you are throwing.')
+            return message.channel.send('Failed to run this command, please include who you are sniping.')
         }
-        return message.channel.send(message.author.username + ' has thrown ' + user.username + ' on a train track, and ' + user.username + ' got squished to their death.') 
+        return message.channel.send(user.username + ' got sniped with a sniper from 2000 feet in the air, and it was a 360 no-scope!' + ' \n**Sniped by: **' + message.author.username) 
+    }
+
+    if (msg.startsWith(guildConf[message.guild.id].prefix + 'crush')) {
+        let user = message.mentions.users.first();
+        if (!user) {
+            return message.channel.send('You will never have a crush, and will forever be single, noob.')
+        }
+        return message.channel.send(message.author.username + ', you will have a crush on ' + user.username + '. I Hope you guys become the most beautiful couple there is yet!') 
+    }
+
+    if (msg.startsWith(guildConf[message.guild.id].prefix + 'pp')) {
+        
+        let peepeeembed = new Discord.MessageEmbed()
+        .setTitle(message.author.username + "'s PeePee Information")
+        .setColor("RANDOM")
+        .addField("Size:", "20 inches")
+        .addField("ID:", message.author.id)
+        .setFooter(`Lead Developers: SpookySleek#8596 and SpookyEvee#0001 | GIZMO.GG`);
+        return message.channel.send(peepeeembed);
     }
 })
 
-// Message Handler
+// Image Commands
+client.on('message', message => {
+    if (!message.guild) {
+        return;
+    }
+    let msg = message.content.toLowerCase();
+    let args = message.content.substring(prefix.length).split(' ');
+
+    if (!guildConf[message.guild.id]) {
+        guildConf[message.guild.id] = {
+            prefix: ';'
+        }
+    }
+    fs.writeFile('./config.json', JSON.stringify(guildConf, null, 2), (err) => {
+        if (err) console.log(err);
+    })
+
+    if (msg.startsWith(prefix + "meme") || msg.startsWith(prefix + "memes")) {
+        const got = require('got'),
+              {MessageEmbed} = require('discord.js');
+        
+        got('https://www.reddit.com/r/meme/random/.json').then(response => {
+          let content = JSON.parse(response.body),
+              image = content[0].data.children[0].data.url,
+              embed = new MessageEmbed()
+          .setImage(image)
+          .setTimestamp()
+          .setFooter('from: r/meme')
+          message.channel.send(embed);
+        }).catch(console.log)
+      }
+
+      if (msg.startsWith(prefix + "pat")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/pat').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(":)", attachment)
+        })
+      }
+      
+      if (msg.startsWith(prefix + "meow")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/meow').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+
+      if (msg.startsWith(prefix + "woof")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/woof').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+
+      if (msg.startsWith(prefix + "tickle")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/tickle').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+
+      if (msg.startsWith(prefix + "wallpaper")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/wallpaper').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+
+      if (msg.startsWith(prefix + "goose")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/goose').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+
+      if (msg.startsWith(prefix + "avatar")) {
+        const {MessageAttachment} = require('discord.js');
+        const {body} = fetch('https://nekos.life/api/v2/img/avatar').then(res => res.json()).then(result => {
+          if (!result.url) return message.channel.send("Something went wrong.");
+          const attachment = new MessageAttachment(result.url);
+          message.channel.send(attachment) // You can remove the :), it's optional.
+        })
+      }
+})
+
+// Economy Commands
 client.on("message", async (message) => {
     if (message.content.startsWith(prefix)) {
         // Command
@@ -392,6 +546,7 @@ client.on("message", async (message) => {
                 lastwork: 0,
                 lambos: 0,
                 cheese: 0,
+                bereket: 0,
             }
             Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
 
@@ -788,11 +943,25 @@ client.on("message", async (message) => {
                             return;
                         }
 
+                        case "bereket":
+                            if (7 * parseInt(amount) > UserJSON[message.author.id].bal) {
+                                let ErrorEmbed2 = new Discord.MessageEmbed();
+                                ErrorEmbed2.setTitle("**ERROR**");
+                                ErrorEmbed2.setDescription("You do not have enough money");
+                                ErrorEmbed2.setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+                                message.channel.send(ErrorEmbed2);
+                                return;
+                            }
+
                     UserJSON[message.author.id].lambos += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
                     Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
 
                     UserJSON[message.author.id].cheese += parseInt(amount);
+                    UserJSON[message.author.id].bal -= parseInt(amount) * 7;
+                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+
+                    UserJSON[message.author.id].bereket += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
                     Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
 
