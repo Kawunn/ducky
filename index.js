@@ -3,6 +3,7 @@ const Discord = require('discord.js');
 var guildConf = require('./server/guildConf.json')
 const Fs = require("fs");
 const prefix = ';';
+require('dotenv-flow').config()
 db = require('quick.db')
 
 const client = new Discord.Client();
@@ -1062,5 +1063,5 @@ client.on("message", async (message) => {
 
 
 
-client.login("NzcwMzI0MTAzMjY5MzE4Njk3.X5b6Og.JzKzMkHV_tslBXgckDu9ssGQNH0");
+client.login(process.env.TOKEN);
 
