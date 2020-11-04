@@ -10,7 +10,7 @@
 </h1>
 
 <p align="center">
-    A multipurpose, customizable, and interactive bot for Discord!
+    A multipurpose, customizable, and interactive bot for Discord.
 </p>
 
 <p align = "center">
