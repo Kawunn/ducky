@@ -1,6 +1,6 @@
 const fs = require('fs');
 const Discord = require('discord.js');
-var guildConf = require('./guildConf.json')
+var guildConf = require('./server/guildConf.json')
 const Fs = require("fs");
 const prefix = ';';
 db = require('quick.db')
@@ -197,7 +197,7 @@ client.on('message', message => {
             prefix: ';'
         }
     }
-    fs.writeFile('./config.json', JSON.stringify(guildConf, null, 2), (err) => {
+    fs.writeFile('./server/config.json', JSON.stringify(guildConf, null, 2), (err) => {
         if (err) console.log(err);
     })
 
@@ -344,6 +344,19 @@ client.on('message', message => {
         }
     }
 
+    if (msg.startsWith(guildConf[message.guild.id].prefix + 'ego')) {
+        let number = Math.floor(Math.random() * 101);
+        if (!args[1]) {
+            return message.channel.send('**Your ego is:** ' + number)
+        } else {
+            let user = message.mentions.users.first();
+            if (!user) {
+                return message.channel.send('Failed to run this command, please include who you are trying to get their ego number of.')
+            }
+            return message.channel.send(`**${user.username}` + "'s ego is:** " + number)
+        }
+    }
+
     if (msg.startsWith(prefix + "spotify")) {
         let user;
         if (message.mentions.users.first()) {
@@ -436,7 +449,7 @@ client.on('message', message => {
             prefix: ';'
         }
     }
-    fs.writeFile('./config.json', JSON.stringify(guildConf, null, 2), (err) => {
+    fs.writeFile('./server/config.json', JSON.stringify(guildConf, null, 2), (err) => {
         if (err) console.log(err);
     })
 
@@ -546,6 +559,7 @@ client.on("message", async (message) => {
                 lastwork: 0,
                 lambos: 0,
                 cheese: 0,
+                minecraft: 0,
                 bereket: 0,
             }
             Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
@@ -713,14 +727,6 @@ client.on("message", async (message) => {
                 message.channel.send(ErrorEmbed);
                 return;
             }
-            if (UserJSON[message.author.id].bal < Money) {
-                let ErrorEmbed = new Discord.MessageEmbed();
-                ErrorEmbed.setTitle("**ERROR**");
-                ErrorEmbed.setDescription("You do not have enough money");
-                ErrorEmbed.setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
-                message.channel.send(ErrorEmbed);
-                return;
-            }
             if (Money.indexOf(".") != -1 || Money.indexOf("-") != -1 || Money == 0) {
                 let ErrorEmbed = new Discord.MessageEmbed();
                 ErrorEmbed.setTitle("**ERROR**");
@@ -729,7 +735,16 @@ client.on("message", async (message) => {
                 message.channel.send(ErrorEmbed);
                 return;
             }
-
+            if (UserJSON[message.author.id].bal < Money) {
+            if (UserJSON[message.author.id].bal > Money) {
+                let ErrorEmbed = new Discord.MessageEmbed();
+                ErrorEmbed.setTitle("**ERROR**");
+                ErrorEmbed.setDescription("You do not have enough money");
+                ErrorEmbed.setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+                message.channel.send(ErrorEmbed);
+                return;
+            }
+        }
             let Mentioned = message.mentions.members.first();
             if (!Mentioned) {
                 let ErrorEmbed = new Discord.MessageEmbed();
@@ -943,6 +958,16 @@ client.on("message", async (message) => {
                             return;
                         }
 
+                        case "minecraft":
+                            if (7 * parseInt(amount) > UserJSON[message.author.id].bal) {
+                                let ErrorEmbed2 = new Discord.MessageEmbed();
+                                ErrorEmbed2.setTitle("**ERROR**");
+                                ErrorEmbed2.setDescription("You do not have enough money");
+                                ErrorEmbed2.setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+                                message.channel.send(ErrorEmbed2);
+                                return;
+                            }
+
                         case "bereket":
                             if (7 * parseInt(amount) > UserJSON[message.author.id].bal) {
                                 let ErrorEmbed2 = new Discord.MessageEmbed();
@@ -958,6 +983,10 @@ client.on("message", async (message) => {
                     Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
 
                     UserJSON[message.author.id].cheese += parseInt(amount);
+                    UserJSON[message.author.id].bal -= parseInt(amount) * 7;
+                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+
+                    UserJSON[message.author.id].minecraft += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
                     Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
 

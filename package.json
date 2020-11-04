@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "canvas": "^2.6.1",
     "cpu-stat": "^2.0.1",
     "dateformat": "^3.0.3",
     "discord.js": "^12.4.1",
