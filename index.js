@@ -26,40 +26,54 @@ client.on("message", async message => {
     console.log(`${message.author.username}: ${message.content}`);
 });
 
+// BOT Join Guild Tracker
+client.on("guildCreate", guild => {
+    console.log(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
+    client.user.setActivity(`Serving ${client.guilds.cache.size} servers`);
+  });
+  
+  // BOT Remove From Guild Tracker
+  client.on("guildDelete", guild => {
+    console.log(`I have been removed from: ${guild.name} (id: ${guild.id})`);
+    client.user.setActivity(`Serving ${client.guilds.cache.size} servers`);
+  });
+
+  client.on('guildMemberAdd', (guildMember) => {
+    guildMember.addRole(guildMember.guild.roles.find(role => role.name === "Member"));
+ });
+
 // Activity Status
 client.on("ready", () => {
   function randomStatus() {
-    let status = ["Gizmo.GG", "YouTube", "Discord", "servers", "users"]
+    let status = [";help | gizmo.gg"]
     let rstatus = Math.floor(Math.random() * status.length);
     
-    client.user.setActivity(status[rstatus], {type: "WATCHING", url: "https://www.discord.com"});
+    client.user.setActivity(status[rstatus], {type: "PLAYING", url: "https://www.discord.com"});
   }; setInterval(randomStatus, 30000) // Time in ms. 30000ms = 30 seconds. Min: 20 seconds, to avoid ratelimit.
 })
 
 // Help Commands
 client.on('message', message => {
     if(message.content === ";help") {
-        const helpEmbed = new Discord.MessageEmbed()
-        .setAuthor("Gizmo's Help Command")
-        .setDescription("Dungeon Gizmo v1.0")
-        .addField("**Commands** \n",":1234: Math \n;help math \n\n :hammer_pick: Moderation \n ;help moderation \n\n :smile: Fun \n;help fun \n\n :money_with_wings:  Economy \n;help eco \n\n :100: : Misc \n;help misc")
-        .setColor("AQUA")
-        .setFooter("Lead Developers: SpookySleek#8596 and SpookyEvee#0001")
-        .setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
-        message.author.send(helpEmbed)
-    }
-});
 
-client.on('message', message => {
-    if(message.content === ";help math") {
-        const helpEmbed = new Discord.MessageEmbed()
-        .setAuthor("Gizmo's Math Help Command")
-        .setDescription("Dungeon Gizmo v1.0")
-        .addField("**Commands** \n","```Multiply 2 numbers, example: ;multiply 8 4 = Gives answer 32``` Math \n;help math \n\n :hammer_pick: Moderation \n ;help moderation \n\n :smile: Fun \n;help fun \n\n :money_with_wings:  Economy \n;help eco \n\n :100: : Misc \n;help misc")
-        .setColor("AQUA")
-        .setFooter("Lead Developers: SpookySleek#8596 and SpookyEvee#0001")
-        .setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
-        message.author.send(helpEmbed)
+    const helpEmbed = new Discord.MessageEmbed()
+    .setColor('RANDOM')
+	.setAuthor("Gizmo Command List", 'https://i.ibb.co/DtdBRSf/Gizmo-Logo.png', 'https://discord.js.org')
+    .setDescription('Want More? [**Gizmo Pro**](https://gizmo.gg/pro) is the right fit for you!')
+    .setURL('https://gizmo.gg/')
+	.addFields(
+		{ name: ';music', value: "`Play some tunes, and get groovy!`", inline: true },
+        { name: ';math', value: "`Get help with any math-type question!`", inline: true },
+        { name: ';games', value: "`Play some fun games, and challenge friends!`", inline: true },
+        { name: ';moderation', value: "`Control your server, and users`", inline: true },
+        { name: ';pets', value: "`Adopt your own pet, name them, and feed them!`", inline: true },
+        { name: ';images', value: "`Generate images of your choice randomly!`", inline: true },
+        { name: ';fun', value: "`Some random commands for you to use!`", inline: true },
+	)
+    .addField(';currency', "`Use our currency system, and raid dungeons!`", true)
+	.setTimestamp()
+    .setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+    message.channel.send(helpEmbed)
     }
 });
 
@@ -122,6 +136,8 @@ client.on('message', message => {
 	} else if (command === 'prune') {
 		const amount = parseInt(args[0]) + 1;
 
+        if(message.member.guild.me.hasPermission('ADMINISTRATOR') || message.member.guild.me.hasPermmission('MANAGE_MESSAGES'))
+        
 		if (isNaN(amount)) {
 			return message.reply('That doesn\'t seem to be a valid number.');
 		} else if (amount <= 1 || amount > 100) {
@@ -132,7 +148,7 @@ client.on('message', message => {
 			console.error(err);
 			message.channel.send('Failed to prune messages, please try again.');
 		});
-	}
+    }
 });
 
 // Misc Commands
@@ -228,6 +244,26 @@ client.on('message', message => {
             })
     }
 
+    if (msg.startsWith(guildConf[message.guild.id].prefix + 'announce')) {
+ 
+        if(!message.guild.member(message.author).hasPermission("VIEW_AUDIT_LOG")) return;
+ 
+        let args = message.content.split(" ").slice(1);
+        let announcementTitle = args.join(" ")
+        let announcementDescription = args.join(" ")
+
+        message.delete()
+
+        var announcement = new Discord.MessageEmbed()
+        .setAuthor("🚨 | Announcement")
+        .setColor('#36393f')
+        .addField(`Message:`, announcementDescription)
+        .setTimestamp()
+        .setColor('RANDOM')
+        .setFooter(`Gizmo Community`, client.user.displayAvatarURL)
+        message.channel.send(announcement)
+    }
+
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'food')) {
         if (!args[1]) {
           let foodEmbed = new Discord.MessageEmbed()
@@ -247,6 +283,26 @@ client.on('message', message => {
           if (msg.startsWith(guildConf[message.guild.id].prefix + 'hug')) {
             message.channel.send(`Aw! I gave you a hug, ${message.author}. I hope you feel better.`);
           }
+
+          if (msg.startsWith(guildConf[message.guild.id].prefix + 'log')) {
+            if (message.member.hasPermission("ADMINISTRATOR") ||message.member.hasPermission("MANAGE_GUILD")){
+    
+                if (!args[1]) {
+                    return message.channel.send('Please include your what you are logging.')
+                }
+    
+                if (client.channels.fetch('771144103709638676')) {
+                    client.channels.fetch('771144103709638676').then(channel => {
+                        channel.send(args.slice(1).join(" "))
+                message.delete();
+                })
+            } else {
+                return message.channel.send('There was an error doing this.')
+            }
+        } else {
+            return message.channel.send('You do not have permissions to log.')
+        }
+        }
 
           if (msg.startsWith(guildConf[message.guild.id].prefix + 'log')) {
             if (message.member.hasPermission("ADMINISTRATOR") ||message.member.hasPermission("MANAGE_GUILD")){
@@ -427,15 +483,47 @@ client.on('message', message => {
 
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'pp')) {
         
+        months = ["January", "February", "March", "April", "May", "June", "July"];
+        const random = Math.floor(Math.random() * months.length);
+
         let peepeeembed = new Discord.MessageEmbed()
         .setTitle(message.author.username + "'s PeePee Information")
         .setColor("RANDOM")
-        .addField("Size:", "20 inches")
+        .addField("Size in inches:", + random, months[random])
         .addField("ID:", message.author.id)
         .setFooter(`Lead Developers: SpookySleek#8596 and SpookyEvee#0001 | GIZMO.GG`);
         return message.channel.send(peepeeembed);
     }
 })
+
+client.on("message", async message => {
+    if(message.content === ";profile") {
+    const avatar = await fetch(message.author.avatarURL({format: 'jpg'}))
+      
+      
+      
+  let mage = new Canvas(500, 250)
+  .setColor("#ffffff")
+  .addRect(0, 0, 500, 250) //we gonna replace it with image
+  .setColor("#ff2050")
+  .addRect(0, 0, 500, 80)
+  .setColor("#ffffff")
+  .setTextFont('bold 40px Impact') //you can make it bold
+  .addText("PROFILE CARD", 110, 55)
+  .setColor("#ff2050")
+  .setTextFont('bold 20px Impact') 
+  .addText(`ID - ${message.author.id}`, 30, 140)
+  .addText(`TAG - ${message.author.tag}`, 30, 170)
+  .addText(`GUILD NAME - ${message.guild.name}`, 30, 200)
+  .setColor("#ffffff")
+  .addCircle(60, 40, 33)
+  .addCircularImage(await avatar.buffer(), 60, 40, 30)
+  .toBuffer();
+      
+      message.channel.send({files: [mage]}) //lol i forget again
+      
+    } //THESE CODE WILL BE PUBLISHED ON GITHUB
+  })
 
 // Image Commands
 client.on('message', message => {
@@ -1059,6 +1147,9 @@ client.on("message", async (message) => {
         }
     }
 })
+
+
+
 
 
 
