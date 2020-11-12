@@ -1,18 +1,20 @@
 const fs = require('fs');
 const Discord = require('discord.js');
-var guildConf = require('./server/guildConf.json')
+var guildConf = require('./client/guildConf.json')
 const Fs = require("fs");
 const prefix = ';';
+const enmap = require('enmap');
 require('dotenv-flow').config()
 db = require('quick.db')
 
 const client = new Discord.Client();
-client.commands = new Discord.Client();
+client.commands = new Discord.Collection();
 
 fetch = require('node-fetch'),
 cpuStat = require('cpu-stat'),
 parse_ms = require('parse-ms'),
 ms = require('ms'),
+moment = require('moment'),
 os = require('os'),
 dateformat = require('dateformat');
 var dateFormat = require('dateformat');
@@ -112,17 +114,49 @@ client.on('message', message => {
 
 	const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
+
+    if (command === 'stats') {
+        let user = message.mentions.users.first() || message.author;
     
-    if (command === 'user-info') {
-        let serverembed = new Discord.MessageEmbed()
-          .setTitle("User Information")
-          .setColor("RANDOM")
-          .addField("Username:", message.author.username)
-          .addField("ID:", message.author.id)
-          .setFooter(`Lead Developers: SpookySleek#8596 and SpookyEvee#0001 | GIZMO.GG`);
-        message.channel.send(serverembed);
+        if (user.presence.status === "dnd") user.presence.status = "Do Not Disturb";
+        if (user.presence.status === "idle") user.presence.status = "Idle";
+        if (user.presence.status === "offline") user.presence.status = "Offline";
+        if (user.presence.status === "online") user.presence.status = "Online";
         
-    } else if (command === 'server-info') {
+        function game() {
+          let game;
+          if (user.presence.activities.length >= 1) game = `${user.presence.activities[0].type} ${user.presence.activities[0].name}`;
+          else if (user.presence.activities.length < 1) game = "None"; // This will check if the user doesn't playing anything.
+          return game; // Return the result.
+        }
+        
+        let x = Date.now() - user.createdAt; // Since the user created their account.
+        let y = Date.now() - message.guild.members.cache.get(user.id).joinedAt; // Since the user joined the server.
+        let created = Math.floor(x / 86400000); // 5 digits-zero.
+        let joined = Math.floor(y / 86400000);
+        
+        const member = message.guild.member(user);
+        let nickname = member.nickname !== undefined && member.nickname !== null ? member.nickname : "None";
+        let createdate = moment.utc(user.createdAt).format("dddd, MMMM Do YYYY, HH:mm:ss"); // User Created Date
+        let joindate = moment.utc(member.joinedAt).format("dddd, MMMM Do YYYY, HH:mm:ss"); // User Joined the Server Date
+        let status = user.presence.status;
+        let avatar = user.avatarURL({size: 2048}); // Use 2048 for high quality avatar.
+        
+        const embed = new Discord.MessageEmbed()
+        .setAuthor(user.tag, avatar)
+        .setThumbnail(avatar)
+        .setTimestamp()
+        .setColor(0x7289DA)
+        .addField("ID", user.id, true)
+        .addField("Nickname", nickname, true)
+        .addField("Account Creation Date", `${createdate} \nsince ${created} day(s) ago`, true)
+        .addField("Joined Guild Date", `${joindate} \nsince ${joined} day(s) ago`, true)
+        .addField("Status", status, true)
+        .addField("Game", game(), true)
+        
+        message.channel.send(embed); // Let's see if it's working.
+        
+    } else if (command === 'server-stats') {
           let serverembed = new Discord.MessageEmbed()
           .setTitle("Server Information")
           .setColor("RANDOM")
@@ -147,9 +181,85 @@ client.on('message', message => {
 		message.channel.bulkDelete(amount, true).catch(err => {
 			console.error(err);
 			message.channel.send('Failed to prune messages, please try again.');
-		});
+        });
     }
 });
+
+const settings = new enmap({
+    name: "settings",
+    autoFetch: true,
+    cloneLevel: "deep",
+    fetchAll: true
+});
+
+client.on('message', async message => {
+    if(message.author.bot) return;
+    if(message.content.indexOf(prefix) !== 0) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/g);
+    const command = args.shift().toLowerCase();
+
+    if(command == "ticket-setup") {
+
+        let channel = message.mentions.channels.first();
+        if(!channel) return message.reply("Not quite! Usage `;ticket-setup <channel>`");
+
+        let sent = await channel.send(new Discord.MessageEmbed()
+            .setTitle("Ticket System")
+            .setDescription("React to open a ticket!")
+            .setFooter("Ticket System")
+            .setColor("RANDOM")
+        );
+
+        sent.react('🎫');
+        settings.set(`${message.guild.id}-ticket`, sent.id);
+
+        message.channel.send(":partying_face: Whoo! You've completed your ticket-setup for " + message.guild.name)
+    }
+
+    if(command == "close") {
+        if(!message.channel.name.includes("ticket-")) return message.channel.send("You cannot use that here!")
+        message.channel.delete();
+    }
+});
+
+
+client.on('messageReactionAdd', async (reaction, user) => {
+    if(user.partial) await user.fetch();
+    if(reaction.partial) await reaction.fetch();
+    if(reaction.message.partial) await reaction.message.fetch();
+
+    if(user.bot) return;
+
+    let ticketid = await settings.get(`${reaction.message.guild.id}-ticket`);
+
+    if(!ticketid) return;
+
+    if(reaction.message.id == ticketid && reaction.emoji.name == '🎫') {
+        reaction.users.remove(user);
+
+        reaction.message.guild.channels.create(`ticket-${user.username}`, {
+            permissionOverwrites: [
+                {
+                    id: user.id,
+                    allow: ["SEND_MESSAGES", "VIEW_CHANNEL"]
+                },
+                {
+                    id: reaction.message.guild.roles.everyone,
+                    deny: ["VIEW_CHANNEL"]
+                }
+            ],
+            type: 'text'
+        }).then(async channel => {
+            channel.send(`<@${user.id}>`, new Discord.MessageEmbed()
+            .setTitle("We will be with you shortly")
+            .setDescription("Please do not close the ticket until one of our staff has handled your issue, we will be with you shortly!")
+            .setColor("00ff00"))
+        })
+    }
+});
+
+
 
 // Misc Commands
 client.on('message', message =>{
@@ -158,37 +268,20 @@ client.on('message', message =>{
     const args = message.content.slice(prefix.length).split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if(command === 'ping'){
-        message.channel.send('Pong.');
-
-    } else if(command === 'beep'){
+    if(command === 'beep'){
         message.channel.send('Boop.');
 
     } else if(command === 'boop'){
         message.channel.send('Beep.');
 
     } else if(command === 'name'){
-        const name = message.member.displayName;
-        const server = "server name";
-
-        message.channel.send("Your name is" + {name})
-
-        message.channel.send("Your name is " + name + ". Welcome to " + server + "!")
         message.channel.send(`Your name is ${name}. Welcome to ${server}!`)
+
     } else if(command === 'hi'){
         message.channel.send('hi');
 
     } else if(command === 'hey'){
         message.channel.send('hey');
-
-    } else if(command === 'quite'){
-        message.channel.send('hey WATCH IT! I AM GIZMOTRON 9000000000');
-
-    } else if(command === 'gizmo'){
-        message.channel.send('hey buddy, got something to tell u...turns out, ur a 100%, that bitch!');
-
-    } else if(command === 'gizmoblood'){
-        message.channel.send('i have an A blood type');
     
     } else if(command === 'yo'){
         message.channel.send('yo');
@@ -198,6 +291,9 @@ client.on('message', message =>{
 
     } else if(command === 'hello'){
         message.channel.send('hello');
+
+    } else if(command === 'support'){
+        message.channel.send('https://discord.gg/N2sVpRBbbC');
     }
 });
 
@@ -214,13 +310,13 @@ client.on('message', message => {
             prefix: ';'
         }
     }
-    fs.writeFile('./server/config.json', JSON.stringify(guildConf, null, 2), (err) => {
+    fs.writeFile('./client/config.json', JSON.stringify(guildConf, null, 2), (err) => {
         if (err) console.log(err);
     })
 
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'rng')) {
         if (!args[1]) {
-            return message.channel.send('Failed to run this command, please include a number.')
+            return message.channel.send('Failed to run this command, please include a valid number.')
         }
         if (isNaN(args[1])) {
             return message.channel.send('Failed to run this command, please include an actual number.')
@@ -234,6 +330,8 @@ client.on('message', message => {
             return message.channel.send('Failed to run this command, please include what you are polling.')
         }
 
+        message.delete()
+
         const poll = new Discord.MessageEmbed()
             .setTitle('**POLL**')
             .setDescription(`${args.slice(1).join(" ")}`)
@@ -242,26 +340,6 @@ client.on('message', message => {
                 await embedMessage.react('👍')
                 await embedMessage.react('👎')
             })
-    }
-
-    if (msg.startsWith(guildConf[message.guild.id].prefix + 'announce')) {
- 
-        if(!message.guild.member(message.author).hasPermission("VIEW_AUDIT_LOG")) return;
- 
-        let args = message.content.split(" ").slice(1);
-        let announcementTitle = args.join(" ")
-        let announcementDescription = args.join(" ")
-
-        message.delete()
-
-        var announcement = new Discord.MessageEmbed()
-        .setAuthor("🚨 | Announcement")
-        .setColor('#36393f')
-        .addField(`Message:`, announcementDescription)
-        .setTimestamp()
-        .setColor('RANDOM')
-        .setFooter(`Gizmo Community`, client.user.displayAvatarURL)
-        message.channel.send(announcement)
     }
 
     if (msg.startsWith(guildConf[message.guild.id].prefix + 'food')) {
@@ -538,7 +616,7 @@ client.on('message', message => {
             prefix: ';'
         }
     }
-    fs.writeFile('./server/config.json', JSON.stringify(guildConf, null, 2), (err) => {
+    fs.writeFile('./client/config.json', JSON.stringify(guildConf, null, 2), (err) => {
         if (err) console.log(err);
     })
 
@@ -631,7 +709,7 @@ client.on("message", async (message) => {
         if (args[0] == "start") {
 
             // Action
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
 
             if (UserJSON[message.author.id]) {
                 let WarningEmbed = new Discord.MessageEmbed();
@@ -651,7 +729,7 @@ client.on("message", async (message) => {
                 minecraft: 0,
                 bereket: 0,
             }
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
@@ -661,7 +739,7 @@ client.on("message", async (message) => {
             return;
         }
         if (args[0] == "daily") {
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             if (Math.floor(new Date().getTime() - UserJSON[message.author.id].lastclaim) / (1000 * 60 * 60 * 24) < 1) {
                 let WarningEmbed = new Discord.MessageEmbed()
                 WarningEmbed.setTitle("**ERROR**");
@@ -672,7 +750,7 @@ client.on("message", async (message) => {
             }
             UserJSON[message.author.id].bal += 500;
             UserJSON[message.author.id].lastclaim = new Date().getTime();
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
             SuccessEmbed.setDescription("Success! You have claimed your daily reward of 500 coins!");
@@ -681,7 +759,7 @@ client.on("message", async (message) => {
             return;
         }
         if (args[0] == "hourly") {
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             if (Math.floor(new Date().getTime() - UserJSON[message.author.id].lastclaim) / (60 * 60) < 1) {
                 let WarningEmbed = new Discord.MessageEmbed()
                 WarningEmbed.setTitle("**ERROR**");
@@ -692,7 +770,7 @@ client.on("message", async (message) => {
             }
             UserJSON[message.author.id].bal += 500;
             UserJSON[message.author.id].lastclaim = new Date().getTime();
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
             SuccessEmbed.setDescription("Success! You have claimed your hourly reward of 500 coins!");
@@ -702,7 +780,7 @@ client.on("message", async (message) => {
         }
         if (args[0] == "pay") {
             // Action Here
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             let Money = args[1];
 
             /* ERROR CHECKS */
@@ -769,7 +847,7 @@ client.on("message", async (message) => {
             UserJSON[message.author.id].bal -= parseInt(Money);
             UserJSON[Mentioned.id].bal += parseInt(Money);
 
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
@@ -787,7 +865,7 @@ client.on("message", async (message) => {
                 }
 
             // Action Here
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             let Money = args[1];
 
             /* ERROR CHECKS */
@@ -855,7 +933,7 @@ client.on("message", async (message) => {
             UserJSON[message.author.id].bal -= parseInt(Money);
             UserJSON[Mentioned.id].bal -= parseInt(Money);
 
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
@@ -872,7 +950,7 @@ client.on("message", async (message) => {
                 }
 
             // Action Here
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             let Money = args[1];
 
             /* ERROR CHECKS */
@@ -931,7 +1009,7 @@ client.on("message", async (message) => {
             UserJSON[message.author.id].bal += parseInt(Money);
             UserJSON[Mentioned.id].bal += parseInt(Money);
 
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
@@ -942,7 +1020,7 @@ client.on("message", async (message) => {
 
         if (args[0] == "bal") {
             // Action Here
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
 
             if (!UserJSON[message.author.id]) {
                 let ErrorEmbed = new Discord.MessageEmbed();
@@ -979,7 +1057,7 @@ client.on("message", async (message) => {
         }
 
         if (args[0] == "buy") {
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
 
             if (!UserJSON[message.author.id]) {
                 let ErrorEmbed = new Discord.MessageEmbed();
@@ -1069,19 +1147,19 @@ client.on("message", async (message) => {
 
                     UserJSON[message.author.id].lambos += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
-                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+                    Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
                     UserJSON[message.author.id].cheese += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
-                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+                    Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
                     UserJSON[message.author.id].minecraft += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
-                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+                    Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
                     UserJSON[message.author.id].bereket += parseInt(amount);
                     UserJSON[message.author.id].bal -= parseInt(amount) * 7;
-                    Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+                    Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
                     let SuccessEmbed = new Discord.MessageEmbed();
                     SuccessEmbed.setTitle("**SUCCESS**");
@@ -1100,7 +1178,7 @@ client.on("message", async (message) => {
         }
 
         if (args[0] == "work") {
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
 
             if (!UserJSON[message.author.id]) {
                 let ErrorEmbed = new Discord.MessageEmbed();
@@ -1123,7 +1201,7 @@ client.on("message", async (message) => {
 
             UserJSON[message.author.id].bal += (UserJSON[message.author.id].lambos + 1) * 2;
             UserJSON[message.author.id].lastwork = new Date().getTime();
-            Fs.writeFileSync("./database/users.json", JSON.stringify(UserJSON));
+            Fs.writeFileSync("./data/users.json", JSON.stringify(UserJSON));
 
             let SuccessEmbed = new Discord.MessageEmbed();
             SuccessEmbed.setTitle("**SUCCESS**");
@@ -1132,7 +1210,7 @@ client.on("message", async (message) => {
             message.channel.send(SuccessEmbed);
         }
         if (args[0] == "lb") {
-            let UserJSON = JSON.parse(Fs.readFileSync("./database/users.json"));
+            let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
             var Sorted = Object.entries(UserJSON).sort((a, b) => b[1].bal - a[1].bal);
             if (Sorted.length > 10) Sorted = Sorted.slice(0, 10);
 
@@ -1147,12 +1225,6 @@ client.on("message", async (message) => {
         }
     }
 })
-
-
-
-
-
-
 
 client.login(process.env.TOKEN);
 
