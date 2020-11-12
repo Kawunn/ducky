@@ -217,7 +217,36 @@ client.on('message', async message => {
         message.channel.send(":partying_face: Whoo! You've completed your ticket-setup for " + message.guild.name)
     }
 
-    if(command == "close") {
+    if(command == "close-ticket") {
+        if(!message.channel.name.includes("ticket-")) return message.channel.send("You cannot use that here!")
+        message.channel.delete();
+    }
+});
+
+client.on('message', async message => {
+    if(message.author.bot) return;
+    if(message.content.indexOf(prefix) !== 0) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/g);
+    const command = args.shift().toLowerCase();
+
+    if(command == "announce") {
+
+        let channel = message.mentions.channels.first();
+		if(!channel) return message.reply("Not quite! Usage `;announce <channel> <text>`");
+		let announcement = args.slice(1).join(" ");
+
+        let sent = await channel.send(new Discord.MessageEmbed()
+            .setTitle("🚨 Announcement")
+            .setDescription(announcement)
+            .setFooter(message.guild.name)
+            .setColor("RANDOM")
+        );
+
+		message.channel.send(":partying_face: Message sent successfully!")
+    }
+
+    if(command == "close-ticket") {
         if(!message.channel.name.includes("ticket-")) return message.channel.send("You cannot use that here!")
         message.channel.delete();
     }
@@ -294,6 +323,9 @@ client.on('message', message =>{
 
     } else if(command === 'support'){
         message.channel.send('https://discord.gg/N2sVpRBbbC');
+	
+	} else if(command === 'donate'){
+        message.channel.send('https://www.patreon.com/GizmoDiscord');
     }
 });
 
@@ -533,7 +565,35 @@ client.on('message', message => {
           .addField("Listen now on Spotify!", `[\`${artist} - ${name}\`](${url})`, false)
           message.channel.send(embed)
         }
-      }
+	  }
+	  
+	  if(message.content.startsWith(prefix+'av')){
+        
+        if(message.mentions.users.size){
+            let member=message.mentions.users.first()
+        if(member){
+			const av = new Discord.MessageEmbed()
+			.setImage(member.displayAvatarURL())
+			.setTitle(member.username)
+			.setColor("RANDOM")
+			.setTimestamp()
+    		.setFooter(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}));
+            message.channel.send(av)
+            
+        }
+        else{
+            message.channel.send("Sorry none found with that name")
+
+        }
+        }else{
+			const av = new Discord.MessageEmbed()
+			.setImage(message.author.displayAvatarURL())
+			.setTitle(message.author.tag, message.author.displayAvatarURL({ dynamic: true, format: 'png'}))
+			.setTimestamp()
+			.setColor("RANDOM")
+            message.channel.send(av)
+        }
+}
         
       if (msg.startsWith(guildConf[message.guild.id].prefix + 'kill')) {
         let user = message.mentions.users.first();
@@ -571,37 +631,8 @@ client.on('message', message => {
         .addField("ID:", message.author.id)
         .setFooter(`Lead Developers: SpookySleek#8596 and SpookyEvee#0001 | GIZMO.GG`);
         return message.channel.send(peepeeembed);
-    }
+	}
 })
-
-client.on("message", async message => {
-    if(message.content === ";profile") {
-    const avatar = await fetch(message.author.avatarURL({format: 'jpg'}))
-      
-      
-      
-  let mage = new Canvas(500, 250)
-  .setColor("#ffffff")
-  .addRect(0, 0, 500, 250) //we gonna replace it with image
-  .setColor("#ff2050")
-  .addRect(0, 0, 500, 80)
-  .setColor("#ffffff")
-  .setTextFont('bold 40px Impact') //you can make it bold
-  .addText("PROFILE CARD", 110, 55)
-  .setColor("#ff2050")
-  .setTextFont('bold 20px Impact') 
-  .addText(`ID - ${message.author.id}`, 30, 140)
-  .addText(`TAG - ${message.author.tag}`, 30, 170)
-  .addText(`GUILD NAME - ${message.guild.name}`, 30, 200)
-  .setColor("#ffffff")
-  .addCircle(60, 40, 33)
-  .addCircularImage(await avatar.buffer(), 60, 40, 30)
-  .toBuffer();
-      
-      message.channel.send({files: [mage]}) //lol i forget again
-      
-    } //THESE CODE WILL BE PUBLISHED ON GITHUB
-  })
 
 // Image Commands
 client.on('message', message => {
@@ -740,7 +771,7 @@ client.on("message", async (message) => {
         }
         if (args[0] == "daily") {
             let UserJSON = JSON.parse(Fs.readFileSync("./data/users.json"));
-            if (Math.floor(new Date().getTime() - UserJSON[message.author.id].lastclaim) / (1000 * 60 * 60 * 24) < 1) {
+            if (Math.floor(new Date().getTime() - UserJSON[message.author.id].lastclaim) / (60 * 60 * 24) < 1) {
                 let WarningEmbed = new Discord.MessageEmbed()
                 WarningEmbed.setTitle("**ERROR**");
                 WarningEmbed.setDescription("You have claimed today already");
@@ -1219,7 +1250,7 @@ client.on("message", async (message) => {
                 LBString += `${client.users.cache.find(u => u.id == user[0])} - ${user[1].bal}\n`;
             });
             var LBEmbed = new Discord.MessageEmbed()
-                .setTitle("**Leaderboard**")
+                .setTitle("**Global Leaderboard**")
                 .setDescription(LBString);
             message.channel.send(LBEmbed);
         }
